@@ -1,0 +1,7 @@
+[package]
+name = "catan-agent"
+version = "0.1.0"
+authors = ["Declan Kelly <dkelly.home@gmail.com>"]
+
+[dependencies]
+rand = "0.3"
