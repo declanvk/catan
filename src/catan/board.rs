@@ -1,10 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use catan::common::Resource;
+use catan::common::GameResource;
+use catan::game::{ResourceType, BuildingType};
 use rand;
 use rand::Rng;
-
-const BOARD_RESOURCE_TILE_RADIUS: u32 = 3;
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 pub struct InternalCoord {
@@ -78,44 +77,16 @@ impl fmt::Debug for InternalCoord {
     }
 }
 
+impl fmt::Display for InternalCoord {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {}, {})", self.x, self.y, self.z)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum InternalTileType {
-    BuildingTile,
+    BuildingTile(Option<BuildingType>),
     ResourceTile(ResourceTileType),
-}
-
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum ResourceType {
-    Ore,
-    Brick,
-    Grain,
-    Wool,
-    Lumber,
-}
-
-impl Resource for ResourceType {
-    fn count(self) -> usize {
-        match self {
-            ResourceType::Ore => 19,
-            ResourceType::Brick => 19,
-            ResourceType::Grain => 19,
-            ResourceType::Wool => 19,
-            ResourceType::Lumber => 19,
-        }
-    }
-
-    fn all_variants() -> HashSet<ResourceType> {
-        let mut variants: HashSet<ResourceType> = HashSet::new();
-
-        variants.insert(ResourceType::Ore);
-        variants.insert(ResourceType::Brick);
-        variants.insert(ResourceType::Grain);
-        variants.insert(ResourceType::Wool);
-        variants.insert(ResourceType::Lumber);
-
-        variants
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -141,7 +112,7 @@ impl ResourceTileType {
     }
 }
 
-impl Resource for ResourceTileType {
+impl GameResource for ResourceTileType {
     fn count(self) -> usize {
         match self {
             ResourceTileType::Mountains => 3,
@@ -149,7 +120,7 @@ impl Resource for ResourceTileType {
             ResourceTileType::Pasture => 4,
             ResourceTileType::Fields => 4,
             ResourceTileType::Forest => 4,
-            ResourceTileType::Desert => 2,
+            ResourceTileType::Desert => 1,
         }
     }
 
@@ -241,7 +212,7 @@ impl PartialEq<u32> for RollToken {
     }
 }
 
-impl Resource for RollToken {
+impl GameResource for RollToken {
     fn count(self) -> usize {
         match self {
             RollToken::Two => 1,
@@ -275,7 +246,7 @@ impl Resource for RollToken {
     }
 }
 
-const STANDARD_TILE_LOCATIONS: [InternalCoord; 17] = [
+const STANDARD_TILE_LOCATIONS: [InternalCoord; 19] = [
     InternalCoord { x: 0, y: 0, z: 0 },
     InternalCoord { x: 2, y: -1, z: -1 },
     InternalCoord { x: 1, y: 1, z: -2 },
@@ -293,21 +264,21 @@ const STANDARD_TILE_LOCATIONS: [InternalCoord; 17] = [
     InternalCoord { x: -2, y: -2, z: 4 },
     InternalCoord { x: -2, y: 4, z: -2 },
     InternalCoord { x: 2, y: -4, z: 2 },
+    InternalCoord { x: -3, y: 0, z: 3 },
+    InternalCoord { x: 3, y: 0, z: -3 }
 ];
 
 #[derive(Debug)]
 pub struct Board {
     pub tiles: HashMap<InternalCoord, InternalTileType>,
     pub roll_tokens: HashMap<InternalCoord, RollToken>,
-    pub robber_coord: InternalCoord,
 }
 
 impl Board {
     pub fn new() -> Board {
         Board {
             tiles: HashMap::new(),
-            roll_tokens: HashMap::new(),
-            robber_coord: InternalCoord::new(0, 0, 0),
+            roll_tokens: HashMap::new()
         }
     }
 
@@ -362,13 +333,11 @@ impl Board {
                 };
 
                 board.roll_tokens.insert(location, roll_token);
-            } else {
-                board.robber_coord = location;
             }
 
             for neighbor in location.neighbors() {
                 if !board.tiles.contains_key(&neighbor) {
-                    board.tiles.insert(neighbor, InternalTileType::BuildingTile);
+                    board.tiles.insert(neighbor, InternalTileType::BuildingTile(None));
                 }
             }
         }

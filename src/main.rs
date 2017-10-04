@@ -1,8 +1,6 @@
 extern crate rand;
-extern crate piston;
-extern crate graphics;
-extern crate glutin_window;
-extern crate opengl_graphics;
+extern crate piston_window;
+extern crate find_folder;
 
 mod catan;
 mod render;

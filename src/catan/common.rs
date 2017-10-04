@@ -4,7 +4,7 @@ use rand::Rng;
 use std::collections::HashSet;
 use std::hash::Hash;
 
-pub trait Resource: Sized + Clone + Copy + Eq + Hash {
+pub trait GameResource: Sized + Clone + Copy + Eq + Hash {
     fn count(self: Self) -> usize;
     fn all_variants() -> HashSet<Self>;
 
