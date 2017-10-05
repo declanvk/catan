@@ -3,11 +3,10 @@ mod colors;
 mod common;
 
 use piston_window::*;
-use piston_window::math::translate;
 
 use catan::board::Board;
-use render::board_view::{BoardViewSettings, BoardView};
-use render::common::RenderView;
+use render::board_view::{BoardController, BoardViewSettings};
+use render::common::{Controller, Renderer, Builder};
 use render::colors::WHITE;
 
 use find_folder;
@@ -31,38 +30,27 @@ pub fn start_application_view() {
     let mut glyphs = Glyphs::new(font, factory, texture_settings).unwrap();
 
     let mut board = Board::random_start();
-    let mut board_view_settings = BoardViewSettings::default();
-    let mut board_view = BoardView::new(&board);
+    let mut board_controller = BoardController::new(false);
+    let board_view_settings = BoardViewSettings::new(
+        [0.0, 0.0],
+        1.0,
+        0.5,
+        [
+            window.window.size().width as f64 / 2.0,
+            window.window.size().height as f64 / 2.0,
+        ],
+    );
+    let mut board_view = board_view_settings.build();
 
-    let mut events = Events::new(EventSettings::new());
     window.set_lazy(true);
     while let Some(e) = window.next() {
-        if let Some(press_args) = e.press_args() {
-            if press_args == Button::Keyboard(Key::NumPad0) || press_args == Button::Keyboard(Key::D0) {
-                board_view_settings.set_render_text(true);
-            }
-        }
+        board_controller.handle_events(&e, &mut board, &mut board_view);
 
-        if let Some(release_args) = e.release_args() {
-            if release_args == Button::Keyboard(Key::NumPad0) || release_args == Button::Keyboard(Key::D0) {
-                board_view_settings.set_render_text(false);
-            }
-        }
-
-        if let Some(r) = e.render_args() {
-            let base_translate = translate(
-                [
-                    window.window.size().width as f64 / 2.0,
-                    window.window.size().width as f64 / 2.0,
-                ],
-            );
-
+        if let Some(_) = e.render_args() {
             window.draw_2d(&e, |c, g| {
-                let centered_context = c.append_transform(base_translate);
-
                 clear(WHITE, g);
 
-                board_view.render(&board_view_settings, &centered_context, &mut glyphs, g)
+                board_controller.render(&board, &board_view, &c, &mut glyphs, g)
             });
         }
     }
