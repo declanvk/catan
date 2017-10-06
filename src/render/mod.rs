@@ -14,7 +14,7 @@ use find_folder;
 const OPEN_GL_VERSION: OpenGL = OpenGL::V3_2;
 
 pub fn start_application_view() {
-    let mut window: PistonWindow = WindowSettings::new("Catan Agent", [800, 800])
+    let mut window: PistonWindow = WindowSettings::new("Catan Agent", [900, 900])
         .opengl(OPEN_GL_VERSION)
         .exit_on_esc(true)
         .vsync(true)
@@ -30,11 +30,11 @@ pub fn start_application_view() {
     let mut glyphs = Glyphs::new(font, factory, texture_settings).unwrap();
 
     let mut board = Board::random_start();
-    let mut board_controller = BoardController::new(false);
+    let mut board_controller = BoardController::new(false, true);
     let board_view_settings = BoardViewSettings::new(
         [0.0, 0.0],
         1.0,
-        0.5,
+        1.0,
         [
             window.window.size().width as f64 / 2.0,
             window.window.size().height as f64 / 2.0,

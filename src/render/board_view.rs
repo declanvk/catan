@@ -12,11 +12,15 @@ use std::default::Default;
 
 pub struct BoardController {
     render_coordinate_text: bool,
+    render_roll_tokens: bool,
 }
 
 impl BoardController {
-    pub fn new(render_coordinate_text: bool) -> BoardController {
-        BoardController { render_coordinate_text }
+    pub fn new(render_coordinate_text: bool, render_roll_tokens: bool) -> BoardController {
+        BoardController {
+            render_coordinate_text,
+            render_roll_tokens,
+        }
     }
 }
 
@@ -26,10 +30,18 @@ impl Controller for BoardController {
 
     fn handle_events(&mut self, e: &Event, model: &mut Board, view: &mut BoardView) {
 
-        e.press(|button| if button == Button::Keyboard(Key::NumPad0) ||
-            button == Button::Keyboard(Key::D0)
+        e.press(|button| if button == Button::Keyboard(Key::NumPad1) ||
+            button == Button::Keyboard(Key::D1)
         {
+            if !self.render_coordinate_text && self.render_roll_tokens {
+                self.render_roll_tokens = false;
+            }
             self.render_coordinate_text = !self.render_coordinate_text;
+        } else if button == Button::Keyboard(Key::NumPad2) || button == Button::Keyboard(Key::D2) {
+            if !self.render_roll_tokens && self.render_coordinate_text {
+                self.render_coordinate_text = false;
+            }
+            self.render_roll_tokens = !self.render_roll_tokens;
         });
 
     }
@@ -48,6 +60,7 @@ pub struct BoardView {
     fields_tile: Polygon,
     forest_tile: Polygon,
     coordinate_text: Text,
+    roll_token_text: Text,
     hexagon_nominal_size: Scalar,
     hexagon_actual_size: Scalar,
 }
@@ -67,6 +80,9 @@ pub struct BoardViewSettings {
     coordinate_text_color: Color,
     coordinate_text_font_size: FontSize,
     coordinate_text_round: bool,
+    roll_token_text_font_size: FontSize,
+    roll_token_text_color: Color,
+    roll_token_text_round: bool,
     hexagon_nominal_size: Scalar,
     hexagon_actual_size: Scalar,
 }
@@ -91,6 +107,11 @@ impl Builder for BoardViewSettings {
                 color: self.coordinate_text_color,
                 font_size: self.coordinate_text_font_size,
                 round: self.coordinate_text_round,
+            },
+            roll_token_text: Text {
+                color: self.roll_token_text_color,
+                font_size: self.roll_token_text_font_size,
+                round: self.roll_token_text_round,
             },
             hexagon_nominal_size: self.hexagon_nominal_size,
             hexagon_actual_size: self.hexagon_actual_size,
@@ -134,8 +155,11 @@ impl Default for BoardViewSettings {
             coordinate_text_font_size: 18,
             coordinate_text_color: BLACK,
             coordinate_text_round: false,
-            hexagon_nominal_size: 46.0,
-            hexagon_actual_size: 46.0 * 0.85,
+            roll_token_text_font_size: 18,
+            roll_token_text_color: BLACK,
+            roll_token_text_round: false,
+            hexagon_nominal_size: 50.0,
+            hexagon_actual_size: 50.0 * 0.85,
         }
     }
 }
@@ -172,12 +196,20 @@ impl Renderer for BoardController {
         G: Graphics<Texture = C::Texture>,
     {
         let centered_context = context
-            .trans(board_view.upper_left_anchor[0], board_view.upper_left_anchor[1])
+            .trans(
+                board_view.upper_left_anchor[0],
+                board_view.upper_left_anchor[1],
+            )
             .scale(board_view.scale_width, board_view.scale_height)
             .trans(board_view.origin[0], board_view.origin[1]);
 
-        for (&coord, tile_type) in board.tiles.iter() {
-            let polygon = board_view.get_polygon_for_tile_type(tile_type);
+        for &coord in board.tiles.keys() {
+            let tile_type = board.tiles.get(&coord).expect(
+                "No tile found for coordinate!",
+            );
+            let possible_roll_token = board.roll_tokens.get(&coord);
+
+            let polygon = board_view.get_polygon_for_tile_type(&tile_type);
             let center = convert_cube_coord_to_cartesian(coord, board_view.hexagon_nominal_size);
             let vertices = hexagon_vertices(center, board_view.hexagon_actual_size);
             polygon.draw(
@@ -188,27 +220,62 @@ impl Renderer for BoardController {
             );
 
             if self.render_coordinate_text {
-                let text_content = format!("{}", coord);
-                let text_width = glyphs
-                    .width(board_view.coordinate_text.font_size, text_content.as_str())
-                    .unwrap();
-                let text_transform = centered_context.transform.trans(
-                    center[0] - (text_width / 2.0),
-                    center[1] +
-                        (board_view.coordinate_text.font_size as Scalar /
-                             4.0),
-                );
-
-                board_view.coordinate_text.draw(
-                    text_content.as_str(),
+                render_text(
+                    coord,
+                    center,
+                    board_view.coordinate_text,
+                    &centered_context,
                     glyphs,
-                    &centered_context.draw_state,
-                    text_transform,
                     g,
                 );
             }
+
+            if self.render_roll_tokens {
+                if let Some(roll_token) = possible_roll_token {
+                    render_text(
+                        roll_token,
+                        center,
+                        board_view.roll_token_text,
+                        &centered_context,
+                        glyphs,
+                        g,
+                    );
+                }
+            }
         }
     }
+}
+
+fn render_text<C, G, T>(
+    object: T,
+    position: Vec2d,
+    text_object: Text,
+    context: &Context,
+    glyphs: &mut C,
+    g: &mut G,
+) -> Result<(), C::Error>
+where
+    T: fmt::Display,
+    C: CharacterCache,
+    C::Error: fmt::Debug,
+    G: Graphics<Texture = C::Texture>,
+{
+    let text_content = format!("{}", object);
+    let text_width = glyphs
+        .width(text_object.font_size, text_content.as_str())
+        .unwrap();
+    let text_transform = context.transform.trans(
+        position[0] - (text_width / 2.0),
+        position[1] + (text_object.font_size as Scalar / 4.0),
+    );
+
+    text_object.draw(
+        text_content.as_str(),
+        glyphs,
+        &context.draw_state,
+        text_transform,
+        g,
+    )
 }
 
 fn convert_cube_coord_to_cartesian(coord: InternalCoord, size: Scalar) -> Vec2d {

@@ -1,7 +1,9 @@
 use catan::board::{Board, InternalCoord};
 use catan::common::GameResource;
 use std::collections::{HashMap, HashSet};
-use std::ops::{Add, Sub, Index};
+use std::ops::{Add, Sub, Index, IndexMut};
+use std::fmt;
+use std::cmp::Ordering;
 use rand::distributions::{IndependentSample, Range};
 use rand::{Rng, ThreadRng, thread_rng};
 
@@ -29,12 +31,12 @@ pub enum PlayerColor {
     Blue,
 }
 
-pub enum PlayerAction {
+pub enum PlayerAction<'a> {
     Roll(u32),
     Build(BuildingType),
     PurchaseDevelopmentCard(DevelopmentCardType),
     PlayDevelopmentCard(DevelopmentCardType),
-    TradeResources(),
+    TradeResources(PlayerTrade<'a>),
 }
 
 pub struct PlayerTrade<'a> {
@@ -194,13 +196,32 @@ impl GameResource for ResourceType {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(PartialEq, Eq)]
 pub struct ResourceCollection {
     ore: u32,
     brick: u32,
     grain: u32,
     wool: u32,
     lumber: u32,
+}
+
+impl PartialOrd for ResourceCollection {
+    fn partial_cmp(&self, other: &ResourceCollection) -> Option<Ordering> {
+        if self.ore > other.ore && self.brick > other.brick && self.grain > other.grain &&
+            self.wool > other.wool && self.lumber > other.lumber
+        {
+            Some(Ordering::Greater)
+        } else if self.ore < other.ore && self.brick < other.brick &&
+                   self.grain < other.grain && self.wool < other.wool &&
+                   self.lumber < other.lumber
+        {
+            Some(Ordering::Less)
+        } else if self == other {
+            Some(Ordering::Equal)
+        } else {
+            None
+        }
+    }
 }
 
 impl ResourceCollection {
@@ -212,6 +233,25 @@ impl ResourceCollection {
             wool,
             lumber,
         }
+    }
+
+    pub fn satisfies(&self, other: &ResourceCollection) -> bool {
+        self.ore >= other.ore && self.brick >= other.brick && self.grain >= other.grain &&
+            self.wool >= other.wool && self.lumber >= other.lumber
+    }
+}
+
+impl fmt::Debug for ResourceCollection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "(Ore: {}, Brick: {}, Grain: {}, Wool: {}, Lumber: {})",
+            self.ore,
+            self.brick,
+            self.grain,
+            self.wool,
+            self.lumber
+        )
     }
 }
 
@@ -254,5 +294,135 @@ impl Index<ResourceType> for ResourceCollection {
             ResourceType::Wool => &self.wool,
             ResourceType::Lumber => &self.lumber,            
         }
+    }
+}
+
+impl IndexMut<ResourceType> for ResourceCollection {
+    fn index_mut(&mut self, index: ResourceType) -> &mut Self::Output {
+        match index {
+            ResourceType::Ore => &mut self.ore,
+            ResourceType::Brick => &mut self.brick,
+            ResourceType::Grain => &mut self.grain,
+            ResourceType::Wool => &mut self.wool,
+            ResourceType::Lumber => &mut self.lumber,            
+        }
+    }
+}
+
+#[cfg(test)]
+mod resource_collection_tests {
+    use catan::game::ResourceCollection;
+    use catan::game::ResourceType;
+
+    #[test]
+    fn test_creation() {
+        let resource_collection = ResourceCollection::new(3, 2, 1, 0, 4);
+
+        assert_eq!(resource_collection.ore, 3);
+        assert_eq!(resource_collection.brick, 2);
+        assert_eq!(resource_collection.grain, 1);
+        assert_eq!(resource_collection.wool, 0);
+        assert_eq!(resource_collection.lumber, 4);
+    }
+
+    #[test]
+    fn test_satisfies() {
+        let collection_a = ResourceCollection::new(3, 2, 1, 0, 4);
+        let does_satisfy = ResourceCollection::new(3, 1, 0, 0, 2);
+        let does_not_satisfy = ResourceCollection::new(2, 2, 2, 2, 2);
+
+        assert!(collection_a.satisfies(&does_satisfy));
+        assert!(!collection_a.satisfies(&does_not_satisfy));
+    }
+
+    #[test]
+    fn test_equality() {
+        let equal_a = ResourceCollection::new(1, 2, 1, 1, 1);
+        let equal_b = ResourceCollection::new(1, 2, 1, 1, 1);
+        let not_equal = ResourceCollection::new(1, 1, 1, 2, 1);
+
+        assert!(equal_a == equal_b);
+        assert!(equal_a != not_equal);
+        assert!(equal_b != not_equal);
+    }
+
+    #[test]
+    fn test_comparison() {
+        let lower_collection = ResourceCollection::new(0, 1, 2, 3, 4);
+        let middle_collection = ResourceCollection::new(1, 2, 3, 4, 5);
+        let upper_collection = ResourceCollection::new(2, 3, 4, 5, 6);
+
+        let lower_middle_collection = ResourceCollection::new(0, 1, 2, 4, 5);
+        let middle_upper_collection = ResourceCollection::new(1, 2, 3, 5, 6);
+
+        // Normal orderings
+        assert!(lower_collection < middle_collection);
+        assert!(middle_collection < upper_collection);
+        assert!(lower_collection < middle_collection);
+
+        // Incomplete orderings, no order can be produced so everything is false
+        assert!(!(lower_collection < lower_middle_collection));
+        assert!(!(lower_collection > lower_middle_collection));
+
+        assert!(!(lower_middle_collection < middle_collection));
+        assert!(!(lower_middle_collection > middle_collection));
+
+        assert!(!(middle_collection < middle_upper_collection));
+        assert!(!(middle_collection > middle_upper_collection));
+
+        assert!(!(middle_upper_collection < upper_collection));
+        assert!(!(middle_upper_collection > upper_collection));
+    }
+
+    #[test]
+    fn test_addition() {
+        let collection_a = ResourceCollection::new(0, 0, 1, 1, 1);
+        let collection_b = ResourceCollection::new(2, 1, 0, 1, 2);
+        let result = ResourceCollection::new(2, 1, 1, 2, 3);
+
+        assert_eq!(collection_a + collection_b, result);
+    }
+
+    #[test]
+    fn test_subtraction() {
+        let collection_a = ResourceCollection::new(2, 1, 1, 2, 3);
+        let collection_b = ResourceCollection::new(2, 1, 0, 1, 2);
+        let result = ResourceCollection::new(0, 0, 1, 1, 1);
+
+        assert_eq!(collection_a - collection_b, result);
+    }
+
+    #[test]
+    fn test_indexing() {
+        let collection = ResourceCollection::new(2, 3, 5, 7, 9);
+
+        assert_eq!(collection[ResourceType::Ore], 2);
+        assert_eq!(collection[ResourceType::Brick], 3);
+        assert_eq!(collection[ResourceType::Grain], 5);
+        assert_eq!(collection[ResourceType::Wool], 7);
+        assert_eq!(collection[ResourceType::Lumber], 9);
+    }
+
+    #[test]
+    fn test_mutable_indexing() {
+        let mut collection = ResourceCollection::new(2, 3, 5, 7, 9);
+
+        assert_eq!(collection[ResourceType::Ore], 2);
+        assert_eq!(collection[ResourceType::Brick], 3);
+        assert_eq!(collection[ResourceType::Grain], 5);
+        assert_eq!(collection[ResourceType::Wool], 7);
+        assert_eq!(collection[ResourceType::Lumber], 9);
+
+        collection[ResourceType::Grain] -= 2;
+        collection[ResourceType::Ore] += 3;
+        collection[ResourceType::Lumber] /= 3;
+        collection[ResourceType::Wool] %= 3;
+        collection[ResourceType::Brick] = 0;
+
+        assert_eq!(collection[ResourceType::Ore], 5);
+        assert_eq!(collection[ResourceType::Brick], 0);
+        assert_eq!(collection[ResourceType::Grain], 3);
+        assert_eq!(collection[ResourceType::Wool], 1);
+        assert_eq!(collection[ResourceType::Lumber], 3);
     }
 }

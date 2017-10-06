@@ -195,6 +195,12 @@ impl RollToken {
     }
 }
 
+impl fmt::Display for RollToken {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.value())
+    }
+}
+
 impl PartialEq<u32> for RollToken {
     fn eq(&self, other: &u32) -> bool {
         match self {
@@ -265,7 +271,7 @@ const STANDARD_TILE_LOCATIONS: [InternalCoord; 19] = [
     InternalCoord { x: -2, y: 4, z: -2 },
     InternalCoord { x: 2, y: -4, z: 2 },
     InternalCoord { x: -3, y: 0, z: 3 },
-    InternalCoord { x: 3, y: 0, z: -3 }
+    InternalCoord { x: 3, y: 0, z: -3 },
 ];
 
 #[derive(Debug)]
@@ -278,7 +284,7 @@ impl Board {
     pub fn new() -> Board {
         Board {
             tiles: HashMap::new(),
-            roll_tokens: HashMap::new()
+            roll_tokens: HashMap::new(),
         }
     }
 
@@ -337,7 +343,10 @@ impl Board {
 
             for neighbor in location.neighbors() {
                 if !board.tiles.contains_key(&neighbor) {
-                    board.tiles.insert(neighbor, InternalTileType::BuildingTile(None));
+                    board.tiles.insert(
+                        neighbor,
+                        InternalTileType::BuildingTile(None),
+                    );
                 }
             }
         }
