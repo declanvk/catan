@@ -2,8 +2,10 @@ use piston_window::*;
 use piston_window::character::CharacterCache;
 use piston_window::math::{Scalar, Vec2d};
 use piston_window::types::{Color, FontSize};
+use piston_window::context::Context;
 
 use catan::board::{InternalCoord, Board, InternalTileType, ResourceTileType};
+use catan::game::PlayerColor;
 use render::colors::*;
 use render::common::{Renderer, Controller, Builder};
 
@@ -13,13 +15,19 @@ use std::default::Default;
 pub struct BoardController {
     render_coordinate_text: bool,
     render_roll_tokens: bool,
+    render_view_borders: bool,
 }
 
 impl BoardController {
-    pub fn new(render_coordinate_text: bool, render_roll_tokens: bool) -> BoardController {
+    pub fn new(
+        render_coordinate_text: bool,
+        render_roll_tokens: bool,
+        render_view_borders: bool,
+    ) -> BoardController {
         BoardController {
             render_coordinate_text,
             render_roll_tokens,
+            render_view_borders,
         }
     }
 }
@@ -42,6 +50,8 @@ impl Controller for BoardController {
                 self.render_coordinate_text = false;
             }
             self.render_roll_tokens = !self.render_roll_tokens;
+        } else if button == Button::Keyboard(Key::NumPad3) || button == Button::Keyboard(Key::D3) {
+            self.render_view_borders = !self.render_view_borders;
         });
 
     }
@@ -49,9 +59,8 @@ impl Controller for BoardController {
 
 pub struct BoardView {
     upper_left_anchor: Vec2d,
-    origin: Vec2d,
-    scale_width: Scalar,
-    scale_height: Scalar,
+    width: Scalar,
+    height: Scalar,
     building_tile: Polygon,
     desert_tile: Polygon,
     mountain_tile: Polygon,
@@ -67,9 +76,8 @@ pub struct BoardView {
 
 pub struct BoardViewSettings {
     upper_left_anchor: Vec2d,
-    origin: Vec2d,
-    scale_width: Scalar,
-    scale_height: Scalar,
+    width: Scalar,
+    height: Scalar,
     building_tile_color: Color,
     desert_tile_color: Color,
     mountain_tile_color: Color,
@@ -93,9 +101,8 @@ impl Builder for BoardViewSettings {
     fn build(&self) -> BoardView {
         BoardView {
             upper_left_anchor: self.upper_left_anchor,
-            origin: self.origin,
-            scale_width: self.scale_width,
-            scale_height: self.scale_height,
+            width: self.width,
+            height: self.height,
             building_tile: Polygon::new(self.building_tile_color),
             desert_tile: Polygon::new(self.desert_tile_color),
             mountain_tile: Polygon::new(self.mountain_tile_color),
@@ -120,19 +127,13 @@ impl Builder for BoardViewSettings {
 }
 
 impl BoardViewSettings {
-    pub fn new(
-        upper_left_anchor: Vec2d,
-        scale_width: Scalar,
-        scale_height: Scalar,
-        origin: Vec2d,
-    ) -> BoardViewSettings {
+    pub fn new(upper_left_anchor: Vec2d, width: Scalar, height: Scalar) -> BoardViewSettings {
         let default = BoardViewSettings::default();
 
         BoardViewSettings {
             upper_left_anchor,
-            origin,
-            scale_width,
-            scale_height,
+            width,
+            height,
             ..default
         }
     }
@@ -142,9 +143,8 @@ impl Default for BoardViewSettings {
     fn default() -> BoardViewSettings {
         BoardViewSettings {
             upper_left_anchor: [0.0, 0.0],
-            origin: [0.0, 0.0],
-            scale_width: 1.0,
-            scale_height: 1.0,
+            width: 400.0,
+            height: 400.0,
             building_tile_color: BUILDING_GREY,
             desert_tile_color: DESERT_YELLOW,
             mountain_tile_color: MOUNTAIN_BLUE_GREY,
@@ -158,8 +158,8 @@ impl Default for BoardViewSettings {
             roll_token_text_font_size: 18,
             roll_token_text_color: BLACK,
             roll_token_text_round: false,
-            hexagon_nominal_size: 50.0,
-            hexagon_actual_size: 50.0 * 0.85,
+            hexagon_nominal_size: 40.0,
+            hexagon_actual_size: 40.0 * 0.85,
         }
     }
 }
@@ -200,14 +200,10 @@ impl Renderer for BoardController {
                 board_view.upper_left_anchor[0],
                 board_view.upper_left_anchor[1],
             )
-            .scale(board_view.scale_width, board_view.scale_height)
-            .trans(board_view.origin[0], board_view.origin[1]);
+            .trans(board_view.width / 2.0, board_view.height / 2.0);
 
         for &coord in board.tiles.keys() {
-            let tile_type = board.tiles.get(&coord).expect(
-                "No tile found for coordinate!",
-            );
-            let possible_roll_token = board.roll_tokens.get(&coord);
+            let (tile_type, possible_roll_token) = board.get_location(coord);
 
             let polygon = board_view.get_polygon_for_tile_type(&tile_type);
             let center = convert_cube_coord_to_cartesian(coord, board_view.hexagon_nominal_size);
@@ -241,6 +237,20 @@ impl Renderer for BoardController {
                         g,
                     );
                 }
+            }
+
+            if self.render_view_borders {
+                Rectangle::new_border(RED, 1.0).draw(
+                    [
+                        board_view.upper_left_anchor[0],
+                        board_view.upper_left_anchor[1],
+                        board_view.width,
+                        board_view.height,
+                    ],
+                    &context.draw_state,
+                    context.transform,
+                    g,
+                )
             }
         }
     }
@@ -312,4 +322,13 @@ fn hexagon_vertices(center: Vec2d, size: Scalar) -> [Vec2d; 6] {
             center[1] + size * ((60 * 5 + 30) as Scalar).to_radians().sin(),
         ],
     ]
+}
+
+fn map_player_color(player_color: PlayerColor) -> Color {
+    match player_color {
+        PlayerColor::Red => PLAYER_RED,
+        PlayerColor::White => PLAYER_WHITE,
+        PlayerColor::Orange => PLAYER_ORANGE,
+        PlayerColor::Blue => PLAYER_BLUE,
+    }
 }

@@ -353,4 +353,11 @@ impl Board {
 
         board
     }
+
+    pub fn get_location(&self, coordinate: InternalCoord) -> (&InternalTileType, Option<&RollToken>) {
+        let tile_type = self.tiles.get(&coordinate).expect("Could not find tile for coordinate!");
+        let roll_token = self.roll_tokens.get(&coordinate);
+
+        (tile_type, roll_token)
+    }
 }

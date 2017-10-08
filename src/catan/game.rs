@@ -363,15 +363,19 @@ mod resource_collection_tests {
         // Incomplete orderings, no order can be produced so everything is false
         assert!(!(lower_collection < lower_middle_collection));
         assert!(!(lower_collection > lower_middle_collection));
+        assert!(!(lower_collection == lower_middle_collection));
 
         assert!(!(lower_middle_collection < middle_collection));
         assert!(!(lower_middle_collection > middle_collection));
+        assert!(!(lower_middle_collection == middle_collection));
 
         assert!(!(middle_collection < middle_upper_collection));
         assert!(!(middle_collection > middle_upper_collection));
+        assert!(!(middle_collection == middle_upper_collection));
 
         assert!(!(middle_upper_collection < upper_collection));
         assert!(!(middle_upper_collection > upper_collection));
+        assert!(!(middle_upper_collection == upper_collection));
     }
 
     #[test]
