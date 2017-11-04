@@ -1,15 +1,19 @@
+extern crate piston_window;
+extern crate catan_core;
+extern crate find_folder;
+#[macro_use]
+extern crate log;
+
 mod board_view;
 mod colors;
 mod common;
 
 use piston_window::*;
 
-use catan::board::Board;
-use render::board_view::{BoardController, BoardViewSettings};
-use render::common::{Controller, Renderer, Builder};
-use render::colors::{BACKGROUND_SEA_BLUE, WHITE};
-
-use find_folder;
+use catan_core::board::Board;
+use ::board_view::{BoardController, BoardViewSettings};
+use ::common::{Controller, Renderer, Builder};
+use ::colors::{BACKGROUND_SEA_BLUE, WHITE};
 
 const OPEN_GL_VERSION: OpenGL = OpenGL::V3_2;
 
@@ -29,8 +33,8 @@ pub fn start_application_view() {
     let texture_settings = TextureSettings::new();
     let mut glyphs = Glyphs::new(font, factory, texture_settings).unwrap();
 
-    let mut board = Board::random_start();
-    let mut board_controller = BoardController::new(false, true, true);
+    let mut board = Board::balanced_start();
+    let mut board_controller = BoardController::new(false, true, true, false);
     let board_view_settings = BoardViewSettings::new([0.0, 0.0], 800.0, 800.0);
     let mut board_view = board_view_settings.build();
 
@@ -42,7 +46,7 @@ pub fn start_application_view() {
             window.draw_2d(&e, |c, g| {
                 clear(WHITE, g);
 
-                board_controller.render(&board, &board_view, &c, &mut glyphs, g)
+                board_controller.render(&board, &mut board_view, &c, &mut glyphs, g)
             });
         }
     }

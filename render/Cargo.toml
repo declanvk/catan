@@ -1,0 +1,9 @@
+[package]
+name = "catan_render"
+version = "0.1.0"
+
+[dependencies]
+piston_window = "~0.71.1"
+find_folder = "~0.3.0"
+log = "~0.3.8"
+catan_core = { path = "../core" }

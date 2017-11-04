@@ -13,7 +13,7 @@ pub trait Renderer {
     type Model;
     type View;
 
-    fn render<C, G>(&self, model: &Self::Model, view: &Self::View, context: &Context, glyphs: &mut C, graphics: &mut G)
+    fn render<C, G>(&self, model: &Self::Model, view: &mut Self::View, context: &Context, glyphs: &mut C, graphics: &mut G)
     where
         C: CharacterCache,
         C::Error: fmt::Debug,

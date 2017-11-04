@@ -1,5 +1,5 @@
-use catan::board::{Board, InternalCoord};
-use catan::common::GameResource;
+use super::board::{Board, BuildingType};
+use super::common::GameResource;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Add, Sub, Index, IndexMut};
 use std::fmt;
@@ -12,18 +12,17 @@ pub struct CatanGame {
     players: Vec<Player>,
     current_player_index: u32,
     dice: [Dice; 2],
+    resource_bank: ResourceCollection,
 }
 
 #[derive(Debug)]
 pub struct Player {
     color: PlayerColor,
     resources: ResourceCollection,
-    development_cards: HashMap<DevelopmentCardType, u32>,
-    buildings: HashMap<InternalCoord, BuildingType>,
-    roads: HashSet<(InternalCoord, InternalCoord)>,
+    development_cards: HashMap<DevelopmentCardType, u32>
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum PlayerColor {
     Red,
     White,
@@ -31,6 +30,7 @@ pub enum PlayerColor {
     Blue,
 }
 
+#[derive(Debug)]
 pub enum PlayerAction<'a> {
     Roll(u32),
     Build(BuildingType),
@@ -39,11 +39,12 @@ pub enum PlayerAction<'a> {
     TradeResources(PlayerTrade<'a>),
 }
 
+#[derive(Debug)]
 pub struct PlayerTrade<'a> {
     offering_player: &'a Player,
     accepting_player: &'a Player,
-    offer: Vec<ResourceType>,
-    receipt: Vec<ResourceType>,
+    offer: ResourceCollection,
+    receipt: ResourceCollection,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
@@ -112,33 +113,6 @@ impl GameResource for DevelopmentCardType {
         variants.insert(DevelopmentCardType::VictoryPoint(
             DevelopmentVictoryPointType::University,
         ));
-
-        variants
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum BuildingType {
-    Settlement,
-    City,
-    Road,
-}
-
-impl GameResource for BuildingType {
-    fn count(self) -> usize {
-        match self {
-            BuildingType::Settlement => 5,
-            BuildingType::City => 4,
-            BuildingType::Road => 15,
-        }
-    }
-
-    fn all_variants() -> HashSet<BuildingType> {
-        let mut variants: HashSet<BuildingType> = HashSet::new();
-
-        variants.insert(BuildingType::Settlement);
-        variants.insert(BuildingType::City);
-        variants.insert(BuildingType::Road);
 
         variants
     }
@@ -238,6 +212,10 @@ impl ResourceCollection {
     pub fn satisfies(&self, other: &ResourceCollection) -> bool {
         self.ore >= other.ore && self.brick >= other.brick && self.grain >= other.grain &&
             self.wool >= other.wool && self.lumber >= other.lumber
+    }
+
+    pub fn magnitude(&self) -> u32 {
+        self.ore + self.brick + self.grain + self.wool + self.lumber
     }
 }
 
@@ -410,12 +388,6 @@ mod resource_collection_tests {
     #[test]
     fn test_mutable_indexing() {
         let mut collection = ResourceCollection::new(2, 3, 5, 7, 9);
-
-        assert_eq!(collection[ResourceType::Ore], 2);
-        assert_eq!(collection[ResourceType::Brick], 3);
-        assert_eq!(collection[ResourceType::Grain], 5);
-        assert_eq!(collection[ResourceType::Wool], 7);
-        assert_eq!(collection[ResourceType::Lumber], 9);
 
         collection[ResourceType::Grain] -= 2;
         collection[ResourceType::Ore] += 3;
