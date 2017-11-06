@@ -21,17 +21,26 @@ extern crate catan_core;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::rc::Rc;
 
-use futures::{Future, IntoFuture, Stream};
+use futures::{Future, IntoFuture, Sink};
+use futures::Stream;
+use futures::future;
 use tokio_core::reactor::{Core, Handle};
 use tokio_core::net::{TcpListener, TcpStream};
-use tokio_io::codec::length_delimited::FramedRead;
+use tokio_service::Service;
+use tokio_io::io::{ReadHalf, WriteHalf};
+use tokio_io::codec::length_delimited::{FramedRead, FramedWrite};
 use serde_json::Value;
-use tokio_serde_json::ReadJson;
+use tokio_io::AsyncRead;
+use tokio_serde_json::{ReadJson, WriteJson};
 
-use catan_core::network::{ServerRequest, ServerResponse};
+mod error;
+use error::ServerError;
 
-mod services;
-use services::ServerInternalData;
+mod server;
+use server::ServerInternalData;
+
+pub mod services;
+use services::{ServerRequest, ServerResponse, NewPlayerService, ServerErrorResponse};
 
 fn _debugf<F: Future<Item = (), Error = ()>>(_: F) {}
 fn _debugs<S: Stream<Item = (), Error = ()>>(_: S) {}
@@ -46,9 +55,13 @@ pub fn serve(port: u16) -> Result<(), std::io::Error> {
     let listener = TcpListener::bind(&address, &core.handle()).unwrap();
     info!("Server listening on {:?}", listener.local_addr());
 
-    let server = listener.incoming().for_each(|(stream, addr)| {
-        handle_new_client(server_data.clone(), stream, addr, handle.clone())
-    });
+    let server = listener
+        .incoming()
+        .map_err(|err| ServerError::from(err))
+        .for_each(|(stream, addr)| {
+            info!("{} connected", addr);
+            handle_new_client(server_data.clone(), stream, addr, handle.clone())
+        });
 
     core.run(server)?;
 
@@ -60,25 +73,37 @@ fn handle_new_client(
     stream: TcpStream,
     addr: SocketAddr,
     handle: Handle,
-) -> impl IntoFuture<Item = (), Error = std::io::Error> {
-    info!("{} connected", addr);
-    let length_delimited = FramedRead::new(stream);
+) -> impl IntoFuture<Item = (), Error = ServerError> {
+    let (from_client, to_client): (ReadHalf<TcpStream>, WriteHalf<TcpStream>) = stream.split();
+    let write_client: WriteJson<_, ServerResponse> = WriteJson::new(FramedWrite::new(to_client));
+    let read_client: ReadJson<_, ServerRequest> = ReadJson::new(FramedRead::new(from_client));
 
-    let deserialized = ReadJson::<FramedRead<TcpStream>, Value>::new(length_delimited)
-        .map_err(|e| error!("ERR: {:?}", e));
+    let responses = read_client.map_err(|err| ServerError::from(err)).and_then(
+        |msg| {
+            match msg {
+                ServerRequest::NewPlayer { username } => {
+                    let service = NewPlayerService;
 
-    let handle_each_messages = deserialized.for_each(|msg| {
-        let server_request: ServerRequest =
-            serde_json::from_value(msg).expect("Expected value format");
-        info!("GOT: {:?}", server_request);
-        Ok(())
-    });
+                    service.call(username)
+                }
+                _ => {
+                    info!("GOT: {:?}", msg);
 
-    let disconnect = handle_each_messages.and_then(move |_| {
+                    Box::new(future::ok::<ServerResponse, ServerError>(
+                        ServerResponse::Error {
+                            inner: ServerErrorResponse::Other(String::from("Sounds grrreat!")),
+                        },
+                    ))
+                }
+            }
+        },
+    );
+
+    let disconnect = write_client.send_all(responses).and_then(move |_| {
         info!("Client {} disconnected", addr);
 
         Ok(())
-    });
+    }).map_err(|_| ());
 
     handle.spawn(disconnect);
 

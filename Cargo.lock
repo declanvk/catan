@@ -113,6 +113,7 @@ name = "catan_agent"
 version = "0.1.0"
 dependencies = [
  "catan_core 0.1.0",
+ "catan_server 0.1.0",
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -1,6 +1,7 @@
 #![feature(conservative_impl_trait)]
 
 extern crate catan_core;
+extern crate catan_server;
 extern crate futures;
 #[macro_use]
 extern crate log;
@@ -26,7 +27,10 @@ use std::thread;
 use futures::sync::mpsc;
 use std::error::Error;
 
-use catan_core::network::{ServerRequest, ServerResponse};
+use catan_server::services::{ServerRequest, ServerResponse};
+
+mod error;
+use error::ClientError;
 
 fn _debugf<F: Future<Item = (), Error = ()>>(_: F) {}
 fn _debugs<S: Stream<Item = (), Error = ()>>(_: S) {}
@@ -72,7 +76,9 @@ fn run_simple_agent(
     handle: &Handle,
 ) -> impl Future<Item = (), Error = ()> {
     let messages = to_server
-        .send(ServerRequest::NewPlayer(String::from("declanvk")))
+        .send(ServerRequest::NewPlayer {
+            username: String::from("declanvk")
+        })
         .map_err(|err| ClientError::from(err))
         .join(from_server.into_future().map_err(|(err, _)| {
             ClientError::from("Server reciever failed! This should not happen")
@@ -82,12 +88,12 @@ fn run_simple_agent(
 }
 
 fn continuous_server_connection<'a>(
-    socket: TcpStream,
+    stream: TcpStream,
     from_client: mpsc::Receiver<ServerRequest>,
     to_client: mpsc::Sender<ServerResponse>,
     handle: Handle,
 ) -> impl Future<Item = (), Error = ClientError> {
-    let (from_server, to_server): (ReadHalf<TcpStream>, WriteHalf<TcpStream>) = socket.split();
+    let (from_server, to_server): (ReadHalf<TcpStream>, WriteHalf<TcpStream>) = stream.split();
 
     // Serialize frames with JSON
     let write_server: WriteJson<_, ServerRequest> = WriteJson::new(FramedWrite::new(to_server));
@@ -117,65 +123,4 @@ fn continuous_server_connection<'a>(
     reader.select(writer).map(|_| ()).map_err(|(err, _)| {
         ClientError::from(err)
     })
-}
-
-#[derive(Debug)]
-pub enum ClientError {
-    Send(String),
-    Io(std::io::Error),
-    Serde(serde_json::error::Error),
-    Other(String),
-}
-
-impl Error for ClientError {
-    fn description(&self) -> &str {
-        match *self {
-            ClientError::Send(ref err) => err.as_str(),
-            ClientError::Io(ref err) => err.description(),
-            ClientError::Serde(ref err) => err.description(),
-            ClientError::Other(ref err) => err.as_str(),
-        }
-    }
-}
-
-impl std::fmt::Display for ClientError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Client error! ({:?})", self)
-    }
-}
-
-impl From<std::io::Error> for ClientError {
-    fn from(src: std::io::Error) -> Self {
-        ClientError::Io(src)
-    }
-}
-
-impl From<tokio_serde_json::Error> for ClientError {
-    fn from(src: tokio_serde_json::Error) -> Self {
-        match src {
-            tokio_serde_json::Error::Io(err) => ClientError::Io(err),
-            tokio_serde_json::Error::Serde(err) => ClientError::Serde(err),
-        }
-    }
-}
-
-impl<T: std::any::Any> From<mpsc::SendError<T>> for ClientError {
-    fn from(src: mpsc::SendError<T>) -> Self {
-        ClientError::Send(src.description().to_owned())
-    }
-}
-
-impl From<&'static str> for ClientError {
-    fn from(src: &'static str) -> Self {
-        ClientError::Other(src.to_owned())
-    }
-}
-
-impl Into<std::io::Error> for ClientError {
-    fn into(self) -> std::io::Error {
-        match self {
-            ClientError::Io(err) => err,
-            other => std::io::Error::new(std::io::ErrorKind::Other, other.description()),
-        }
-    }
 }

@@ -1,68 +1,67 @@
 use uuid::Uuid;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use catan_core::network::*;
+use tokio_service::Service;
+use futures::prelude::*;
+use futures::future;
 
-/// `PlayerStub` is a type that represents player registered on the server.
+use super::error::ServerError;
+use super::server::{GameMetadata, GameStatus};
+
+/// `ServerRequest` is a type that represents incoming requests to the game server
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PlayerStub {
-    /// Unique username of player, maybe be 8 characters or less
-    username: String,
-    /// Unique identification value
-    id: Uuid,
+pub enum ServerRequest {
+    /// Ask for a new player to be created, will failed with `ServerErrorResponse::PlayerExists` if the player exists
+    /// The supplied username will be truncated to 8 characters if longer.
+    NewPlayer { username: String },
+    /// List all the players that have registered with the server.
+    /// The server will only store these values for the duration of the process.
+    ListPlayers,
+    /// List all the games that are present in archives, running, or waiting to start.
+    /// The server will store records of games to disk, and report their presence on a new startup.
+    /// The filter will specify the type of games to return.
+    ListGames { status_filter: GameStatus },
+    /// let the server know that a specific Player is disconnecting
+    DisconnectPlayer { player_id: Uuid },
 }
 
-#[derive(Debug)]
-pub struct ServerInternalData {
-    games_metadata: HashMap<Uuid, GameMetadata>,
-    active_games: HashMap<Uuid, ActiveGameContainer>,
-    complete_games: HashMap<Uuid, ArchivedGame>,
-    all_players: HashMap<Uuid, PlayerStub>,
+/// `ServerResponse` is a type that represents the outgoing responses from the server to a player
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ServerResponse {
+    /// Returned after a player is successfully created
+    /// The UUID will be needed for all future identification
+    NewPlayer { player_id: Uuid },
+    /// Returns a list of usernames registered to this server
+    PlayerList { all_usernames: Vec<String> },
+    /// Returns a list of games archives, running, or waiting on this server
+    GameList { all_game_data: Vec<GameMetadata> },
+    /// Encompasses all error statuses
+    Error { inner: ServerErrorResponse },
 }
 
-impl Default for ServerInternalData {
-    fn default() -> Self {
-        ServerInternalData {
-            games_metadata: HashMap::new(),
-            active_games: HashMap::new(),
-            complete_games: HashMap::new(),
-            all_players: HashMap::new()
-        }
-    }
+/// `ServerErrorResponse` is a type that represents specific error types and messages
+/// Will be contained in `ServerResponse::Error` for transport
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ServerErrorResponse {
+    /// This will be returned by the server if the transmitted playername is already taken
+    PlayerExists,
+    /// This will be returned if the request sent to the server is malformed or not recognized
+    InvalidRequest,
+    /// This will be returned for any other error, with an attempt made to describe the error in a string
+    Other(String)
 }
 
-#[derive(Debug)]
-pub struct ArchivedGame {
-    log_file: PathBuf,
-    players: Vec<Uuid>,
-}
+pub struct NewPlayerService;
 
-#[derive(Debug)]
-pub struct ActiveGameContainer {
-    players: Vec<Uuid>,
-    game: (),
-}
-
-pub const MAX_PLAYERS: usize = 4;
-
-impl ActiveGameContainer {
-    pub fn new(players: Vec<Uuid>, name: String) -> (ActiveGameContainer, GameMetadata) {
-        let game_id = Uuid::new_v4();
-        let metadata = GameMetadata {
-            status: GameStatus::Open,
-            id: game_id,
-            name,
+impl Service for NewPlayerService {
+    type Request = String;
+    type Response = ServerResponse;
+    type Error = ServerError;
+    type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
+    fn call(&self, req: Self::Request) -> Self::Future {
+        let content = ServerResponse::NewPlayer {
+            player_id: Uuid::new_v4()
         };
-        let container = ActiveGameContainer { players, game: () };
-
-        (container, metadata)
-    }
-
-    pub fn is_full(&self) -> bool {
-        self.players.len() == MAX_PLAYERS
-    }
-
-    pub fn add_player(&self, player_id: Uuid) -> bool {
-        false
+        
+        Box::new(future::ok::<ServerResponse, ServerError>(content))
     }
 }
+
