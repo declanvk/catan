@@ -30,9 +30,9 @@ pub enum ServerResponse {
     /// The UUID will be needed for all future identification
     NewPlayer { player_id: Uuid },
     /// Returns a list of usernames registered to this server
-    PlayerList { all_usernames: Vec<String> },
+    PlayerList { players: Vec<String> },
     /// Returns a list of games archives, running, or waiting on this server
-    GameList { all_game_data: Vec<GameMetadata> },
+    GameList { games: Vec<GameMetadata> },
     /// Encompasses all error statuses
     Error { inner: ServerErrorResponse },
 }
@@ -64,4 +64,3 @@ impl Service for NewPlayerService {
         Box::new(future::ok::<ServerResponse, ServerError>(content))
     }
 }
-

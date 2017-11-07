@@ -1,7 +1,6 @@
 #![feature(conservative_impl_trait)]
 
 extern crate futures;
-
 extern crate tokio_core;
 extern crate tokio_io;
 extern crate tokio_proto;
@@ -15,15 +14,14 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate uuid;
+extern crate byteorder;
 
 extern crate catan_core;
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::rc::Rc;
 
-use futures::{Future, IntoFuture, Sink};
-use futures::Stream;
-use futures::future;
+use futures::{Future, IntoFuture, Sink, Stream, future};
 use tokio_core::reactor::{Core, Handle};
 use tokio_core::net::{TcpListener, TcpStream};
 use tokio_service::Service;

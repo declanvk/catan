@@ -58,9 +58,9 @@ impl From<&'static str> for ClientError {
     }
 }
 
-impl Into<io::Error> for ClientError {
-    fn into(self) -> io::Error {
-        match self {
+impl From<ClientError> for io::Error {
+    fn from(src: ClientError) -> Self {
+        match src {
             ClientError::Io(err) => err,
             other => io::Error::new(io::ErrorKind::Other, other.description()),
         }
