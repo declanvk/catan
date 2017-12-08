@@ -1,0 +1,12 @@
+[package]
+name = "catan_protocols"
+version = "0.1.0"
+authors = ["Declan Kelly <dkelly.home@gmail.com>"]
+build = "build.rs"
+
+[dependencies]
+capnp = "0.8.12"
+
+[build-dependencies]
+capnpc = "0.8"
+glob = "0.2.11"

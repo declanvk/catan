@@ -1,0 +1,40 @@
+[[package]]
+name = "byteorder"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "capnp"
+version = "0.8.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "capnpc"
+version = "0.8.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "capnp 0.8.12 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "catan_protocols"
+version = "0.1.0"
+dependencies = [
+ "capnp 0.8.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "capnpc 0.8.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "glob"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[metadata]
+"checksum byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "652805b7e73fada9d85e9a6682a4abd490cb52d96aeecc12e33a0de34dfd0d23"
+"checksum capnp 0.8.12 (registry+https://github.com/rust-lang/crates.io-index)" = "7aaf3266c9454ce1b20ffee27d8f0c1cc1e483854ce7e04b8926001090997f05"
+"checksum capnpc 0.8.7 (registry+https://github.com/rust-lang/crates.io-index)" = "5eb630656e23f1316d88bad8be37047ba9c6fc89c3e9dbe060c1a91b229918e2"
+"checksum glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "8be18de09a56b60ed0edf84bc9df007e30040691af7acd1c41874faac5895bfb"
