@@ -68,9 +68,9 @@ struct ConstructionOptions {
 }
 
 struct BoardLocation {
-    p @0 :Int32;
-    q @1 :Int32;
-    r @2 :Int32;
+    x @0 :Int32;
+    y @1 :Int32;
+    z @2 :Int32;
 }
 
 struct Map(Key, Value) {

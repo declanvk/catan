@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package services.game_management;
+
+message GameManagementRequest {
+    string game_name = 1;
+    oneof request_type {
+        RegisterNewGame register_new_game = 2;
+        StartGame start_game = 3;
+        EndGame end_game = 4;
+        CleanupGame cleanup_game = 5;
+    }
+}
+
+message RegisterNewGame {
+    int32 num_players = 1;
+    int32 turn_timeout_ms = 2;
+}
+
+message StartGame {}
+
+message EndGame {}
+
+message CleanupGame {}

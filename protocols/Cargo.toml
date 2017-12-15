@@ -1,12 +1,14 @@
 [package]
-name = "catan_protocols"
+name = "catan-protocols"
 version = "0.1.0"
 authors = ["Declan Kelly <dkelly.home@gmail.com>"]
 build = "build.rs"
 
 [dependencies]
-capnp = "0.8.12"
+bytes = "~0.4.5"
+prost = "~0.2.3"
+prost-derive = "~0.2.3"
 
 [build-dependencies]
-capnpc = "0.8"
+prost-build = "~0.2.3"
 glob = "0.2.11"
