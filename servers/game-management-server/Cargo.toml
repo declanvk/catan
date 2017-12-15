@@ -1,0 +1,21 @@
+[package]
+name = "game-management-server"
+version = "0.1.0"
+
+[dependencies]
+log = "~0.3.8"
+pretty_env_logger = "~0.1.1"
+uuid = { version = "~0.5.1", features = ["v1", "v4", "v5"] }
+byteorder = "~1.1.0"
+bytes = "~0.4.5"
+futures = "~0.1.16"
+tokio-core = "~0.1.10"
+tokio-service = "~0.1.0"
+tokio-timer = "~0.1.2"
+redis-async = "0.0.6"
+lazy_static = "1.0.0"
+prost = "~0.2.3"
+glob = "0.2.11"
+
+catan-protocols = { path = "../../protocols" }
+server-common = { path = "../server-common" }
