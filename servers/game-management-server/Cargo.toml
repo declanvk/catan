@@ -14,7 +14,7 @@ tokio-service = "~0.1.0"
 tokio-timer = "~0.1.2"
 redis-async = "0.0.6"
 lazy_static = "1.0.0"
-prost = "~0.2.3"
+prost = "~0.6.1"
 glob = "0.2.11"
 
 catan-protocols = { path = "../../protocols" }
